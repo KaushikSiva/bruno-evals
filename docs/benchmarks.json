@@ -1,0 +1,65 @@
+{
+  "measured_at": "2026-10-31T20:10:16.899Z",
+  "source": "https://dreamlabs.ai/playground/?clip=best154",
+  "method": "One sample per case, with historical observations removed. API inference only, excluding capture and Relay.",
+  "samples_per_case": 1,
+  "historical_context_removed": true,
+  "accuracy_benchmark": false,
+  "model_call_checks": [
+    {
+      "case": "completed_decisions",
+      "frames": 16,
+      "observer_ms": 290,
+      "reviewer_ms": 332,
+      "observer": "success_observed",
+      "verdict": "pass",
+      "api": "decisions",
+      "model": "gpt-6-luna"
+    },
+    {
+      "case": "completed_responses",
+      "frames": 16,
+      "observer_ms": 4985,
+      "reviewer_ms": 2876,
+      "observer": "success_observed",
+      "verdict": "pass",
+      "api": "responses",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "case": "unfinished_decisions",
+      "frames": 1,
+      "observer_ms": 435,
+      "reviewer_ms": 148,
+      "observer": "failure_observed",
+      "verdict": "fail",
+      "api": "decisions",
+      "model": "gpt-6-luna"
+    },
+    {
+      "case": "in_progress_decisions",
+      "frames": 4,
+      "observer_ms": 547,
+      "reviewer_ms": 357,
+      "observer": "in_progress",
+      "verdict": "in_progress",
+      "api": "decisions",
+      "model": "gpt-6-luna"
+    }
+  ],
+  "browser_check": {
+    "passed": true,
+    "frames": 47,
+    "observer_drafts": 12,
+    "reviews": 3,
+    "relay_messages": 6,
+    "reviewed_window_ms": [
+      37262,
+      30118,
+      66543
+    ],
+    "elapsed_seconds": 113,
+    "browser_errors": [],
+    "mobile_overflow": false
+  }
+}

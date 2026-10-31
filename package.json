@@ -10,6 +10,7 @@
     "start": "node --env-file-if-exists=.env.local scripts/start.js",
     "server": "node --env-file-if-exists=.env.local server.js",
     "test": "node --test test/*.test.js",
+    "benchmark": "node --env-file-if-exists=.env.local scripts/benchmark-evaluators.js",
     "record": "node scripts/record-html.js"
   },
   "dependencies": {

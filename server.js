@@ -9,6 +9,7 @@ import { fetchCatalog, downloadVideo, allowedMediaUrl } from './lib/dream.js';
 import { prepareMedia } from './lib/media.js';
 import { evaluateRun } from './lib/evaluate.js';
 import {DEFAULT_EVALUATION_MODEL} from './lib/evaluation-policy.js';
+import {DEFAULT_EVALUATION_API,DECISIONS_MODEL} from './lib/decisions-evaluate.js';
 import { LiveEngine } from './lib/live.js';
 import { DreamLive } from './lib/dream-live.js';
 
@@ -32,14 +33,15 @@ async function getCatalog() {
 function credentials() {
   // Reload a locally configured key without restarting queued work. Never return it to a client.
   let key = process.env.OPENAI_API_KEY || '', model = process.env.OPENAI_MODEL || DEFAULT_EVALUATION_MODEL;
+  let evaluationApi=process.env.BRUNO_EVALUATION_API||DEFAULT_EVALUATION_API;
   try {
     const raw = process.getBuiltinModule('fs').readFileSync(path.join(ROOT,'.env.local'),'utf8');
     for (const line of raw.split(/\r?\n/)) {
-      const m=line.match(/^\s*(?:export\s+)?(OPENAI_API_KEY|OPENAI_MODEL)\s*=\s*(.*?)\s*$/);
-      if (m) { const value=m[2].replace(/^(['"])(.*)\1$/,'$2'); if(m[1]==='OPENAI_API_KEY')key=value;else model=value; }
+      const m=line.match(/^\s*(?:export\s+)?(OPENAI_API_KEY|OPENAI_MODEL|BRUNO_EVALUATION_API)\s*=\s*(.*?)\s*$/);
+      if (m) { const value=m[2].replace(/^(['"])(.*)\1$/,'$2'); if(m[1]==='OPENAI_API_KEY')key=value;else if(m[1]==='OPENAI_MODEL')model=value;else evaluationApi=value; }
     }
   } catch {}
-  return {key,model};
+  return {key,model,evaluationApi:evaluationApi==='responses'?'responses':'decisions'};
 }
 const dirFor = id => path.join(DATA,'runs',id);
 const cleanJob = job => ({...job, sourceFile:undefined, events:store.events(job.id)});
@@ -69,7 +71,7 @@ for (const job of store.list()) {
 let working=false, stopping=false;
 async function work() {
   if(working || stopping) return;
-  const {key,model}=credentials();
+  const {key,model,evaluationApi}=credentials();
   const job=store.list().reverse().find(j=>j.status==='queued' || (j.status==='needs_key' && key));
   if(!job)return;
   working=true;
@@ -101,7 +103,7 @@ async function work() {
       current=store.update(job.id,{status:'needs_key'});event(job.id,'Video is saved. Waiting for an OpenAI API key to evaluate it.');
     } else {
       store.update(job.id,{status:'evaluating',error:null});event(job.id,'Evaluating visible outcomes. Publisher score is withheld from the evaluator.');
-      const report=await evaluateRun(current,dir,key,model);
+      const report=await evaluateRun(current,dir,key,model,evaluationApi);
       current=store.update(job.id,{status:'completed',report});event(job.id,`Assessment complete: ${report.verdict}. Ready for human review.`);
     }
     await persistManifest(current);
@@ -128,7 +130,10 @@ const dreamLive=new DreamLive({live,dataDir:DATA});
 app.use('/api/dream-live',dreamLive.routes());
 app.use('/api/live',live.routes());
 app.use('/live-media',express.static(path.join(DATA,'live'),{dotfiles:'deny',index:false}));
-app.get('/api/status',(_req,res)=>res.json({apiConfigured:!!credentials().key,model:credentials().model,working,dataDirectory:DATA,catalogAt,catalogError}));
+app.get('/api/status',(_req,res)=>{
+  const {key,model,evaluationApi}=credentials();
+  res.json({apiConfigured:!!key,model:evaluationApi==='decisions'?DECISIONS_MODEL:model,evaluationApi,fallbackModel:model,working,dataDirectory:DATA,catalogAt,catalogError});
+});
 app.get('/api/catalog',async(_req,res)=>res.json({clips:await getCatalog(),fetchedAt:catalogAt,warning:catalogError}));
 app.get('/api/jobs',(_req,res)=>res.json(store.list().map(cleanJob)));
 app.get('/api/jobs/:id',(req,res)=>{const j=store.get(req.params.id);if(!j)return res.status(404).json({error:'Run not found'});res.json(cleanJob(j));});
