@@ -1,0 +1,14 @@
+{
+  "name": "bruno-playground-evals",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=22.16"},
+  "scripts": {
+    "start": "node --env-file-if-exists=.env.local server.js",
+    "test": "node --test test/*.test.js",
+    "record": "node scripts/record-html.js"
+  },
+  "dependencies": {"express": "^5.1.0", "multer": "^2.0.2", "openai": "^6.0.0", "zod": "^4.0.0"},
+  "devDependencies": {"playwright": "^1.56.0"}
+}
