@@ -1,0 +1,21 @@
+// Integration assertions against the real local Terse runtime; no model calls.
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {actors} from '../integrations/generated/index.js';
+const a=actors.EvaluationSession.get(`verification-${randomUUID()}`);
+await a.initialize(JSON.stringify({task:'Synthetic durability verification',criteria:['One result per evidence window']}));
+await a.appendFrame(JSON.stringify({seq:0,seconds:0,file:'fixture.jpg'}));
+const claims=await Promise.all([a.claim(0,'one'),a.claim(0,'two')]);assert.equal(claims.filter(Boolean).length,1);
+const token=claims[0]?'one':'two';
+await a.saveObservation(token,JSON.stringify({token,seq:0,observation:{summary:'Fixture'}}));
+await a.saveReviewDraft(token,JSON.stringify({verdict:'uncertain'}));
+await a.saveProgress(JSON.stringify({seq:1,observation:{summary:'Newer draft while reviewer works'}}));
+await a.recordError(token,'Simulated interrupted transport');
+let s=JSON.parse(await a.snapshot());assert.equal(s.pending.review.verdict,'uncertain');assert.equal(s.lease.token,token);
+assert.equal(s.observations.at(-1).seq,1);assert.equal(s.pending.seq,0);
+await a.addMessage(JSON.stringify({id:'fixture-message',text:'Sent'}));await a.addMessage(JSON.stringify({id:'fixture-message',deliveryId:'fixture-delivery'}));
+s=JSON.parse(await a.snapshot());assert.equal(s.messages.length,1);assert.equal(s.messages[0].deliveryId,'fixture-delivery');
+await a.finish('video_ended');await a.finish('capture_disconnected');
+const result=JSON.stringify({seq:0,verdict:'uncertain'});await a.completeReview(token,result);await a.completeReview(token,result);
+s=JSON.parse(await a.snapshot());assert.equal(s.reviews.length,1);assert.equal(s.status,'completed');assert.equal(s.stopReason,'video_ended');
+console.log('Real Terse assertions passed: serialized claims, checkpoint preservation, delivery receipt merge, idempotent completion.');

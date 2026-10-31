@@ -3,12 +3,25 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": {"node": ">=22.16"},
+  "engines": {
+    "node": ">=22.16"
+  },
   "scripts": {
-    "start": "node --env-file-if-exists=.env.local server.js",
+    "start": "node --env-file-if-exists=.env.local scripts/start.js",
+    "server": "node --env-file-if-exists=.env.local server.js",
     "test": "node --test test/*.test.js",
     "record": "node scripts/record-html.js"
   },
-  "dependencies": {"express": "^5.1.0", "multer": "^2.0.2", "openai": "^6.0.0", "zod": "^4.0.0"},
-  "devDependencies": {"playwright": "^1.56.0"}
+  "dependencies": {
+    "@agent-relay/sdk": "^15.0.1",
+    "durable-actors": "^0.14.6",
+    "express": "^5.1.0",
+    "multer": "^2.0.2",
+    "openai": "^6.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "bun": "^1.4.2",
+    "playwright": "^1.56.0"
+  }
 }

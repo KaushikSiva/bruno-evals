@@ -1,6 +1,6 @@
 # Bruno — public robot video evaluations
 
-Created at Haunted Hacks on October 31, 2026. Local application for downloading Dream Labs public robot clips, retaining the original footage, and evaluating visible outcomes in the background.
+Created at Haunted Hacks on October 31, 2026. Download public robot runs, record a browser surface, and review visible outcomes during playback or in the background. Live sessions use **Terse Durable Actors** and two application agents communicating through **Agent Relay**.
 
 ## Run
 
@@ -14,7 +14,24 @@ chmod 600 .env.local
 npm start
 ```
 
-Open http://127.0.0.1:5190. The server only listens on localhost. It continues processing after the browser page closes, while the server is running and the Mac remains awake. SQLite retains job state across server restarts. Interrupted work resumes from completed local artifacts; a request interrupted during AI evaluation may be repeated and billed again.
+Open http://127.0.0.1:5190. `npm start` starts the real Terse development runtime on port 7100 and the Bruno server on port 5190. The project installs the Bun version needed by Terse. The first start may download Terse's native runtime. Use this as a local development app; public hosting needs authentication and a configured Terse deployment.
+
+The backend automatically creates a private Agent Relay workspace and registers `bruno-observer` and `bruno-reviewer` on first use. Subsequent starts reconnect the same identities. No separate Relay login is required for this local flow. Both integration indicators must be connected to start a live session. Agent Relay and OpenAI require network access.
+
+Background evaluation continues after the browser closes, while the server is running and the Mac remains awake. SQLite retains saved-video jobs. Terse retains live-session state. Completed model results are checkpointed before Relay delivery; retries reuse those results and stable message keys. A process interrupted during a model request, before its result is saved, can still repeat that request and incur another charge.
+
+## Live demo
+
+1. Choose a public run and set its observable success criteria.
+2. Click **Watch & evaluate live**. Bruno saves a local replay and plays it at normal video speed.
+3. The browser uploads about one JPEG per second. Only frames already received enter the analysis window; downloading the video does not let the evaluator see future frames.
+4. The observer starts after four frames and keeps reporting visible progress while reviews are in flight. Its timestamped drafts are saved in the session actor. A review window is sent to the reviewer through a real Agent Relay direct message; the next review window starts when that review returns.
+5. The reviewer separately examines the same evidence and replies through Relay. The actor commits its result with message and delivery IDs. Terse WebSocket updates stream into the UI; HTTP polling provides recovery.
+6. The final evidence window is reviewed after playback ends. Click a timestamp to inspect the footage, or export the live report JSON. Reopening a live session restores its durable evidence and reviews.
+
+This is real-time **visual review of public replays or user-selected browser capture**, not a connection to a live physical robot and not a robot control loop. The observer can update within a few seconds; reviewed judgments lag behind capture. Local checks saw first observations around 6 seconds and two-agent round trips around 22–46 seconds, depending on network/service latency. The UI displays the reviewed-through timestamp and measured latency. It does not use the OpenAI Realtime API; it uses rolling image windows through Responses.
+
+Terse owns session state, exclusive evaluation leases, observation/reviewer checkpoints, and delivery records. Agent Relay is the actual observer-to-reviewer and reviewer-to-observer transport; there is no simulated local message bus. The durable inbox retries unacknowledged work. The Node worker stores video bytes and executes model calls.
 
 ## Public-run workflow
 
@@ -33,7 +50,7 @@ Only public video/manifest GET requests are made to Dream Labs. This app does no
 
 **Import video** accepts an existing video or a public Dream Labs media URL. HTML files are rendered before recording; HTML source itself is not a video.
 
-**Record browser** uses the browser's standard tab/window chooser and MediaRecorder. Chrome/Edge on localhost are recommended. The user selects the surface to capture. Audio is disabled. Stop the recording to upload and queue it automatically. Keep the recording page open until it finishes saving. Recording is capped at 10 minutes. If upload fails, the browser downloads a recovery copy.
+**Record browser** uses the browser's standard tab/window chooser and MediaRecorder. Chrome/Edge on localhost are recommended. The user selects the surface to capture. Audio is disabled. Live review runs during capture. Stopping saves the full recording, links it to the live session, and queues a separate full-clip assessment. Keep the recording page open until it finishes saving. Recording is capped at 10 minutes, with up to two live sessions active on the server. If upload fails, the browser downloads a recovery copy. Closing the page stops capture; received frames remain saved and the worker seals a disconnected session after 45 seconds without new frames.
 
 To render and record a trusted local HTML file or a public page with Playwright:
 
@@ -56,21 +73,38 @@ Each run is stored in `data/runs/<run-id>/`:
 - `run.json`: task, criteria, provenance, events, AI result, human reviews.
 - `evaluation.json`: evaluator model, prompt version, token usage, result, and cited evidence.
 
-The queue and events live in `data/bruno.sqlite`. `.env.local`, media, and local artifacts are gitignored. No secrets are sent to the frontend. JSON and original-video downloads are available in the UI.
+The queue and events live in `data/bruno.sqlite`. Live evidence lives in `data/live/<session-id>/` (`replay.mp4` for public clips, `frames/*.jpg`, and `session.json`). Terse's authoritative actor storage is in `integrations/terse/.durable-actors/`; preserve it along with `data/` when backing up this demo. `session.json` is an export, not a substitute for the actor store.
+
+Relay credentials are saved privately with mode 600 in `data/integrations/relay.json`; the OpenAI key stays in `.env.local`. These files, media, runtime storage, and local artifacts are gitignored. No API keys or Relay tokens are sent to the frontend. Public task text and agent findings travel through Relay; selected evidence images and criteria travel to OpenAI. JSON and original-video downloads are available in the UI.
 
 ## Evaluation limits
 
 This is visual review, not physical ground truth. Sampled frames can miss brief events, and camera views can hide outcomes. Saved-video timestamps are not verified robot execution time; public clips may be accelerated or edited. Do not infer contact force, continuous collision avoidance, or safety certification. Unsupported evidence references are rejected; an unsupported pass/fail without frame evidence becomes uncertain. AI-generated follow-up tests are suggestions, not automatically executed commands.
 
-The first implementation uses a local SQLite queue. Terse Durable Actors and Agent Relay are not yet integrated; do not claim their tracks for this build as it stands.
+The observer and reviewer use the same configured vision model in separate requests. Agreement is not independent ground truth: both can make the same visual mistake. Live-window and full-clip assessments can disagree. Inspect the cited frames and retain human review; no accuracy claim is made from the demo clips.
 
 ## Verification
 
 ```sh
 npm test
+# Requires the local Terse runtime; no model/API spend:
+node scripts/verify-actors.js
+# Optional end-to-end checks; these spend OpenAI credits and use Agent Relay:
+node scripts/verify-live.js
+node scripts/verify-live.js --capture
+# Also restart the app and Terse during an in-flight review:
+node scripts/verify-live.js --restart
 ```
 
-Tests cover durable job history, allowed media hosts, final-frame sampling, evidence index validation, preservation of criteria, and uncertain verdicts for unsupported claims. An end-to-end public clip and browser recording are also checked during development.
+Unit tests cover durable job history, allowed media hosts, frame selection, evidence validation, stable-key recovery, duplicate completion, preservation of criteria, and uncertain verdicts for unsupported claims. The actor integration check exercises serialized claims and persisted checkpoints against real Terse. The browser checks exercise public replay and a controlled synthetic canvas stream (never the user's desktop), real Relay receipts, Terse WebSocket updates, recording upload, and desktop/mobile rendering. Proof JSON and screenshots are written to `artifacts/`.
+
+To regenerate actor clients after changing `integrations/terse/src/actors.ts`:
+
+```sh
+PATH="$PWD/node_modules/.bin:$PATH" node_modules/.bin/bun node_modules/durable-actors/bin/durable-actors.js generate integrations/terse/src/actors.ts --config integrations/terse/tsconfig.json --out-dir integrations/generated
+```
+
+Restart `npm start` after actor changes. Generated clients include their upstream runtime license. The current Terse compiler dependency chain has npm moderate advisories in glob/minimatch; the local compiler reads this trusted project. Do not use this development setup to compile untrusted projects or expose it publicly.
 
 ## References
 
@@ -79,3 +113,6 @@ Tests cover durable job history, allowed media hosts, final-frame sampling, evid
 - [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
 - [Browser screen capture](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getDisplayMedia)
 - [Playwright video recording](https://playwright.dev/docs/videos)
+- [Terse quickstart](https://docs.useterse.ai/quickstart)
+- [Terse Durable Actors source](https://github.com/TerseAI/durable-actors)
+- [Agent Relay SDK](https://www.npmjs.com/package/@agent-relay/sdk)

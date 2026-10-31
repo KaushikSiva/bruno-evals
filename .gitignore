@@ -4,3 +4,5 @@ data/
 artifacts/
 *.log
 .DS_Store
+.durable-actors/
+integrations/terse/.durable-actors/
