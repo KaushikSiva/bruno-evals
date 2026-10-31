@@ -22,6 +22,7 @@ sequenceDiagram
     participant O as Observer · OpenAI
     participant A as Agent Relay
     participant R as Reviewer · OpenAI
+    participant S as Supabase archive
     B->>W: JPEG + sequence + video timestamp
     W->>T: Append frame metadata
     W->>T: Claim evaluation window
@@ -37,6 +38,9 @@ sequenceDiagram
     A->>W: Observer inbox delivers result
     W->>T: Commit review + delivery receipt
     T-->>B: WebSocket state update
+    Note over W,S: Background archive queue (optional), retried and never blocks evaluation
+    W-)S: Upload video + evidence JPEGs to private Storage
+    W-)S: Upsert review, provenance, and receipts in Postgres
 ```
 
 Both agents are application roles hosted by the Node process. Each has an Agent Relay identity and makes its own OpenAI request. They are not separate trained robot policies, and their agreement is not independent ground truth.
