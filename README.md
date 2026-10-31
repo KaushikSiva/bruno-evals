@@ -16,18 +16,18 @@ npm start
 
 Open http://127.0.0.1:5190. `npm start` starts the real Terse development runtime on port 7100 and the Bruno server on port 5190. The project installs the Bun version needed by Terse. The first start may download Terse's native runtime. Use this as a local development app; public hosting needs authentication and a configured Terse deployment.
 
-The backend automatically creates a private Agent Relay workspace and registers `bruno-observer` and `bruno-reviewer` on first use. Subsequent starts reconnect the same identities. No separate Relay login is required for this local flow. Both integration indicators must be connected to start a live session. Agent Relay and OpenAI require network access.
+The backend automatically creates a private Agent Relay workspace and registers `bruno-observer` and `bruno-reviewer` on first use. Subsequent starts reconnect the same identities. No separate Relay login is required for this local flow. The header shows Ready when the evaluation services are connected. Agent Relay and OpenAI require network access.
 
 Background evaluation continues after the browser closes, while the server is running and the Mac remains awake. SQLite retains saved-video jobs. Terse retains live-session state. Completed model results are checkpointed before Relay delivery; retries reuse those results and stable message keys. A process interrupted during a model request, before its result is saved, can still repeat that request and incur another charge.
 
 ## Live demo
 
-1. Choose a public run and set its observable success criteria.
-2. Click **Watch & evaluate live**. Bruno saves a local replay and plays it at normal video speed.
+1. Choose a run. **Best runs** is the default collection, using the 20 curated clips from Dream Labs’ dedicated Best runs gallery. **Other public clips** offers its separate 35-clip library. Adjust success criteria under **Options** if needed.
+2. Click **Evaluate**. Bruno saves a local replay and plays it at normal video speed. For Best runs, it uses the same video shown on the source page, which can differ from the publisher’s separate download version.
 3. The browser uploads about one JPEG per second. Only frames already received enter the analysis window; downloading the video does not let the evaluator see future frames.
 4. The observer starts after four frames and keeps reporting visible progress while reviews are in flight. Its timestamped drafts are saved in the session actor. A review window is sent to the reviewer through a real Agent Relay direct message; the next review window starts when that review returns.
 5. The reviewer separately examines the same evidence and replies through Relay. The actor commits its result with message and delivery IDs. Terse WebSocket updates stream into the UI; HTTP polling provides recovery.
-6. The final evidence window is reviewed after playback ends. Click a timestamp to inspect the footage, or export the live report JSON. Reopening a live session restores its durable evidence and reviews.
+6. The final evidence window is reviewed after playback ends. The result appears beside the video. Open **Evidence & activity** for timestamped frames and agent messages, or **Review details** for criteria and limitations. **My reviews** keeps live sessions and full-video assessments together; reopening a session restores its durable evidence and reviews.
 
 This is real-time **visual review of public replays or user-selected browser capture**, not a connection to a live physical robot and not a robot control loop. The observer can update within a few seconds; reviewed judgments lag behind capture. Local checks saw first observations around 6 seconds and two-agent round trips around 22–46 seconds, depending on network/service latency. The UI displays the reviewed-through timestamp and measured latency. It does not use the OpenAI Realtime API; it uses rolling image windows through Responses.
 
@@ -35,11 +35,11 @@ Terse owns session state, exclusive evaluation leases, observation/reviewer chec
 
 ## Direct Dream Labs live source
 
-Open **Dream Labs live** in the sidebar and choose **Watch & evaluate for 10 minutes**. This connects to the public station interfaces used by Dream Labs' own playground: station status, the current public run, and camera JPEGs. No Dream API key is needed for these public reads. The connector uses GET requests only; robot task submission remains on Dream Labs.
+Open **Live camera** and choose **Watch & evaluate** for a ten-minute watch. This connects to the public station interfaces used by Dream Labs' own playground: station status, the current public run, and camera JPEGs. No Dream API key is needed for these public reads. The connector uses GET requests only; robot task submission remains on Dream Labs.
 
 The watch waits for an available head camera and an active task. It samples around one image per second, preserves the task and upstream run ID, and creates a separate Terse evaluation session for each run. It checks run identity before and after each camera request and discards frames crossing a task boundary. Captures that begin late are marked as joining mid-run. Provider scores are excluded from model inputs.
 
-The station view shows current snapshots and agent findings. **Open evidence & agent messages** opens the detailed live session; clicking evidence opens its saved JPEG. These are timestamped samples, not a continuous video recording. **Record browser** remains available for a full video of a chosen browser surface.
+The station view shows current snapshots and agent findings. **Open evidence & agent messages** opens the detailed live session; clicking evidence opens its saved JPEG. These are timestamped samples, not a continuous video recording. **Add video → Record a browser tab** remains available for a full video of a chosen browser surface.
 
 The watch continues when the browser closes, stops after 10 minutes or **Stop watching**, and retains its deadline across server restarts in `data/dream-live-watch.json`. An unavailable camera starts no new evaluation. Existing reviews can finish after the source stops. These public website interfaces are not a guaranteed streaming API and can change independently of Bruno.
 
@@ -47,9 +47,9 @@ At verification on October 31, Dream Labs' Station 1 reported no running robot s
 
 ## Public-run workflow
 
-1. Choose a clip from the public Dream Labs gallery.
-2. Set observable success criteria. The source task instruction is preserved.
-3. Click **Download & evaluate**.
+1. Choose a clip from either Dream Labs collection.
+2. Open **Options** and set observable success criteria. The source task instruction is preserved.
+3. Click **Evaluate the entire video**.
 4. Bruno archives the original, produces a seekable MP4, hashes the source, and samples up to 24 timestamped frames.
 5. A background worker sends only the task, criteria, capture type, and sampled frames to the OpenAI Responses API. Publisher scores are withheld.
 6. Review the provisional pass/fail/uncertain result, seek to evidence frames, and optionally save a human judgment. The original AI result remains intact.
@@ -60,9 +60,9 @@ Only public video/manifest GET requests are made to Dream Labs. This app does no
 
 ## Recording and import
 
-**Import video** accepts an existing video or a public Dream Labs media URL. HTML files are rendered before recording; HTML source itself is not a video.
+**Add video → Upload a video** accepts an existing video or a public Dream Labs media URL. HTML files are rendered before recording; HTML source itself is not a video.
 
-**Record browser** uses the browser's standard tab/window chooser and MediaRecorder. Chrome/Edge on localhost are recommended. The user selects the surface to capture. Audio is disabled. Live review runs during capture. Stopping saves the full recording, links it to the live session, and queues a separate full-clip assessment. Keep the recording page open until it finishes saving. Recording is capped at 10 minutes, with up to two live sessions active on the server. If upload fails, the browser downloads a recovery copy. Closing the page stops capture; received frames remain saved and the worker seals a disconnected session after 45 seconds without new frames.
+**Add video → Record a browser tab** uses the browser's standard tab/window chooser and MediaRecorder. Chrome/Edge on localhost are recommended. The user selects the surface to capture. Audio is disabled. Live review runs during capture. Stopping saves the full recording, links it to the live session, and queues a separate full-clip assessment. Keep the recording page open until it finishes saving. Recording is capped at 10 minutes, with up to two live sessions active on the server. If upload fails, the browser downloads a recovery copy. Closing the page stops capture; received frames remain saved and the worker seals a disconnected session after 45 seconds without new frames.
 
 To render and record a trusted local HTML file or a public page with Playwright:
 
@@ -108,7 +108,7 @@ node scripts/verify-live.js --capture
 node scripts/verify-live.js --restart
 ```
 
-Unit tests cover durable job history, allowed media hosts, frame selection, evidence validation, stable-key recovery, duplicate completion, preservation of criteria, and uncertain verdicts for unsupported claims. The actor integration check exercises serialized claims and persisted checkpoints against real Terse. The browser checks exercise public replay and a controlled synthetic canvas stream (never the user's desktop), real Relay receipts, Terse WebSocket updates, recording upload, and desktop/mobile rendering. Proof JSON and screenshots are written to `artifacts/`.
+Unit tests cover separate Best/public collection identities, replay cache isolation, durable job history, allowed media hosts, frame selection, evidence validation, stable-key recovery, duplicate completion, preservation of criteria, and uncertain verdicts for unsupported claims. The actor integration check exercises serialized claims and persisted checkpoints against real Terse. The browser checks exercise public replay and a controlled synthetic canvas stream (never the user's desktop), real Relay receipts, Terse WebSocket updates, recording upload, and desktop/mobile rendering. Proof JSON and screenshots are written to `artifacts/`.
 
 To regenerate actor clients after changing `integrations/terse/src/actors.ts`:
 

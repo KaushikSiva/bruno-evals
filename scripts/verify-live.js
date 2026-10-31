@@ -7,7 +7,8 @@ import {spawn} from 'node:child_process';
 import assert from 'node:assert/strict';
 const capture=process.argv.includes('--capture');
 const restart=process.argv.includes('--restart');
-const name=capture?'live-capture':'live-replay',base='http://127.0.0.1:5190';
+const clipId=process.argv.find(a=>a.startsWith('--clip='))?.slice(7)||'dream-best-154';
+const name=capture?'live-capture':clipId.startsWith('dream-best-')?'best-replay':'live-replay',base='http://127.0.0.1:5190';
 await mkdir('artifacts',{recursive:true});
 const browser=await chromium.launch({headless:true});
 const page=await browser.newPage({viewport:{width:1512,height:982},reducedMotion:'reduce'});
@@ -27,11 +28,11 @@ if(capture)await page.addInitScript(()=>{
   };
 });
 try{
-  await page.goto(base);await page.waitForSelector('[data-id="dream-public-14"]');
+  await page.goto(base+'/?clip='+encodeURIComponent(clipId));await page.waitForSelector(`[data-id="${clipId}"]`);
   if(capture){
-    await page.click('#record-open');await page.locator('#record-form [name=task]').fill('Synthetic test: move the orange square into the green rectangle.');
+    await page.click('.add-video-menu > summary');await page.click('#record-open');await page.locator('#record-form [name=task]').fill('Synthetic test: move the orange square into the green rectangle.');
     await page.locator('#record-form [type=submit]').click();
-  }else{await page.click('[data-id="dream-public-14"]');await page.click('#start-live-replay');}
+  }else{await page.click(`[data-id="${clipId}"]`);await page.click('#start-live-replay');}
   await page.waitForURL(/live=/,{timeout:30000});proof.id=new URL(page.url()).searchParams.get('live');
   await writeFile(`artifacts/${name}-id.txt`,proof.id);
   const started=Date.now();let stopped=false,session;
@@ -61,7 +62,7 @@ try{
   if(restart){const recovered=session.reviews.find(r=>r.token===proof.restartCheckpoint?.token);assert.ok(recovered);assert.equal(recovered.observer.responseId,proof.restartCheckpoint.observationResponseId);if(proof.restartCheckpoint.reviewResponseId)assert.equal(recovered.responseId,proof.restartCheckpoint.reviewResponseId);assert.equal(session.frames.length,proof.restartCheckpoint.frames);proof.checkpointRecovered=true;}
   proof.receipts=session.reviews.map(r=>({messageId:r.relayMessageId,deliveryId:r.relayDeliveryId,latencyMs:r.totalLatencyMs,through:r.observedThrough}));
   if(capture){const jobs=await(await fetch(base+'/api/jobs')).json();proof.recording=jobs.find(j=>j.task===session.task);}
-  await page.goto(`${base}/?live=${proof.id}`);await page.waitForSelector('.agent-lanes');
+  await page.goto(`${base}/?live=${proof.id}`);await page.waitForSelector('#live-evidence-details');
   await page.screenshot({path:`artifacts/${name}-completed.png`,fullPage:true});
   await page.setViewportSize({width:390,height:844});await page.screenshot({path:`artifacts/${name}-mobile.png`,fullPage:true});
   proof.mobileOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
