@@ -33,6 +33,18 @@ This is real-time **visual review of public replays or user-selected browser cap
 
 Terse owns session state, exclusive evaluation leases, observation/reviewer checkpoints, and delivery records. Agent Relay is the actual observer-to-reviewer and reviewer-to-observer transport; there is no simulated local message bus. The durable inbox retries unacknowledged work. The Node worker stores video bytes and executes model calls.
 
+## Direct Dream Labs live source
+
+Open **Dream Labs live** in the sidebar and choose **Watch & evaluate for 10 minutes**. This connects to the public station interfaces used by Dream Labs' own playground: station status, the current public run, and camera JPEGs. No Dream API key is needed for these public reads. The connector uses GET requests only; robot task submission remains on Dream Labs.
+
+The watch waits for an available head camera and an active task. It samples around one image per second, preserves the task and upstream run ID, and creates a separate Terse evaluation session for each run. It checks run identity before and after each camera request and discards frames crossing a task boundary. Captures that begin late are marked as joining mid-run. Provider scores are excluded from model inputs.
+
+The station view shows current snapshots and agent findings. **Open evidence & agent messages** opens the detailed live session; clicking evidence opens its saved JPEG. These are timestamped samples, not a continuous video recording. **Record browser** remains available for a full video of a chosen browser surface.
+
+The watch continues when the browser closes, stops after 10 minutes or **Stop watching**, and retains its deadline across server restarts in `data/dream-live-watch.json`. An unavailable camera starts no new evaluation. Existing reviews can finish after the source stops. These public website interfaces are not a guaranteed streaming API and can change independently of Bruno.
+
+At verification on October 31, Dream Labs' Station 1 reported no running robot session, no cameras, and its frame endpoint returned HTTP 503. The actual waiting/start/stop UI and source status were verified; active ingestion and task changes were tested with controlled upstream fixtures. A real live-camera run still needs verification when Dream Labs restores its camera. See `artifacts/dream-live-verification.json` for the observed state.
+
 ## Public-run workflow
 
 1. Choose a clip from the public Dream Labs gallery.

@@ -9,6 +9,7 @@ import { fetchCatalog, downloadVideo, allowedMediaUrl } from './lib/dream.js';
 import { prepareMedia } from './lib/media.js';
 import { evaluateRun } from './lib/evaluate.js';
 import { LiveEngine } from './lib/live.js';
+import { DreamLive } from './lib/dream-live.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.resolve(process.env.BRUNO_DATA_DIR || path.join(ROOT,'data'));
@@ -122,6 +123,8 @@ app.use((req,res,next)=>{
 app.use(express.json({limit:'100kb'}));
 const upload=multer({dest:path.join(DATA,'uploads'),limits:{fileSize:512*1024*1024,files:1,fields:10}});
 const live=new LiveEngine({dataDir:DATA,catalog:getCatalog,jobs:()=>store.list(),credentials});
+const dreamLive=new DreamLive({live,dataDir:DATA});
+app.use('/api/dream-live',dreamLive.routes());
 app.use('/api/live',live.routes());
 app.use('/live-media',express.static(path.join(DATA,'live'),{dotfiles:'deny',index:false}));
 app.get('/api/status',(_req,res)=>res.json({apiConfigured:!!credentials().key,model:credentials().model,working,dataDirectory:DATA,catalogAt,catalogError}));
@@ -179,7 +182,8 @@ app.use(express.static(path.join(ROOT,'public')));
 app.use((err,_req,res,_next)=>res.status(err.code==='LIMIT_FILE_SIZE'?413:400).json({error:err.message||'Request failed'}));
 const server=app.listen(PORT,'127.0.0.1',()=>console.log(`Bruno is running at http://127.0.0.1:${PORT}`));
 const interval=setInterval(()=>void work(),1500);
-function shutdown(){stopping=true;clearInterval(interval);void live.close();server.close(()=>{store.close();process.exit(0);});}
+function shutdown(){stopping=true;clearInterval(interval);dreamLive.close();void live.close();server.close(()=>{store.close();process.exit(0);});}
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);
 void getCatalog().catch(e=>console.warn('Public catalog unavailable:',e.message));
 live.startWorker();
+void dreamLive.init();

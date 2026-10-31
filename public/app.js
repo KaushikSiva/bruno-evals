@@ -1,9 +1,11 @@
 import {LiveUI} from './live.js';
+import {DreamLiveUI} from './dream-live.js';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const requestedRun=new URL(location.href).searchParams.get('run');
+const requestedStation=new URL(location.href).searchParams.get('station');
 const requestedLive=new URL(location.href).searchParams.get('live');
-const state={clips:[],jobs:[],liveSessions:[],mode:'public',selected:null,query:'',scene:'',status:{},signature:''};
+const state={dream:{stations:[],watch:null},clips:[],jobs:[],liveSessions:[],mode:'public',selected:null,query:'',scene:'',status:{},signature:''};
 const video=$('#video');
 const fmt=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
 const pretty=s=>String(s||'').replaceAll('_',' ');
@@ -11,15 +13,17 @@ let toastTimer;
 function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').hidden=true,6000);}
 async function api(url,body){const res=await fetch(url,body instanceof FormData?{method:'POST',body}:body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});const data=await res.json();if(!res.ok)throw Error(data.error||'Request failed');return data;}
 const live=new LiveUI({api,toast,isSelected:id=>state.mode==='live'&&state.selected===id,onSession(session,select){state.liveSessions=[session,...state.liveSessions.filter(s=>s.id!==session.id)];if(select){setMode('live');choose(session.id);}else{renderList();if(state.mode==='live')renderSelected();}}});
-function setMode(mode){state.mode=mode;state.signature='';for(const name of ['public','saved','live']){$(`#${name}-tab`).classList.toggle('active',mode===name);$(`#${name}-tab`).setAttribute('aria-selected',mode===name);}$('#scene-filter').hidden=mode!=='public';renderList();}
-function selected(){return(state.mode==='public'?state.clips:state.mode==='live'?state.liveSessions:state.jobs).find(c=>c.id===state.selected);}
+const dream=new DreamLiveUI({api,toast,onInfo(info){state.dream=info;state.signature='';renderSelected();},onSession(session){setMode('live');choose(session.id);}});
+function setMode(mode){state.mode=mode;if(mode!=='dream')dream.hide();$('#dream-live-open').setAttribute('aria-pressed',mode==='dream');state.signature='';for(const name of ['public','saved','live']){$(`#${name}-tab`).classList.toggle('active',mode===name);$(`#${name}-tab`).setAttribute('aria-selected',mode===name);}$('#scene-filter').hidden=mode!=='public';renderList();}
+function selected(){return(state.mode==='dream'?state.dream.stations:state.mode==='public'?state.clips:state.mode==='live'?state.liveSessions:state.jobs).find(c=>c.id===state.selected);}
 function renderList(){
   $('#public-count').textContent=state.clips.length;$('#saved-count').textContent=state.jobs.length;$('#live-count').textContent=state.liveSessions.length;
+  if(state.mode==='dream'){const stations=state.dream.stations;$('#run-list').innerHTML=stations.length?stations.map(s=>`<button class="run-row ${s.id===state.selected?'selected':''}" data-id="${esc(s.id)}"><span class="row-number">●</span><span class="row-text"><strong>${esc(s.name)}</strong><small>${s.cameras.includes('head')?'Camera available':'Waiting for camera'}</small></span></button>`).join(''):'<p class="empty-note">Dream Labs has no public stations available right now.</p>';$('#run-list').querySelectorAll('[data-id]').forEach(el=>el.onclick=()=>choose(el.dataset.id));return;}
   const items=(state.mode==='public'?state.clips:state.mode==='live'?state.liveSessions:state.jobs).filter(c=>(!state.scene||state.mode!=='public'||c.scene===state.scene)&&(`${c.task} ${c.scene} ${c.status||''}`).toLowerCase().includes(state.query));
   $('#run-list').innerHTML=items.length?items.map((c,i)=>`<button class="run-row ${c.id===state.selected?'selected':''}" data-id="${esc(c.id)}" title="${esc(c.task)}">${c.posterUrl?`<img src="${esc(c.posterUrl)}" alt="" loading="lazy">`:c.media?`<img src="/media/${c.id}/frames/000.jpg" alt="" loading="lazy">`:`<span class="row-number">${String(i+1).padStart(2,'0')}</span>`}<span class="row-text"><strong>${esc(c.task)}</strong><small>${esc(state.mode==='public'?pretty(c.scene):c.report?c.report.verdict:pretty(c.status))}</small></span></button>`).join(''):`<p class="empty-note">${state.mode==='public'?'No matching public runs.':'Saved runs and their assessments will appear here.'}</p>`;
   $('#run-list').querySelectorAll('[data-id]').forEach(el=>el.onclick=()=>choose(el.dataset.id));
 }
-function choose(id){state.selected=id;state.signature='';if(id){const u=new URL(location.href);u.searchParams.delete('run');u.searchParams.delete('live');if(state.mode==='saved')u.searchParams.set('run',id);if(state.mode==='live')u.searchParams.set('live',id);history.replaceState(null,'',u);}renderList();renderSelected();}
+function choose(id){state.selected=id;state.signature='';if(id){const u=new URL(location.href);u.searchParams.delete('run');u.searchParams.delete('live');u.searchParams.delete('station');if(state.mode==='dream')u.searchParams.set('station',id);if(state.mode==='saved')u.searchParams.set('run',id);if(state.mode==='live')u.searchParams.set('live',id);history.replaceState(null,'',u);}renderList();renderSelected();}
 function setVideo(src,poster=''){
   video.dataset.live='false';
   if(video.dataset.source!==src||video.srcObject){video.pause();video.srcObject=null;video.controls=true;video.muted=false;video.dataset.source=src||'';if(src){video.src=src;video.poster=poster||'';}else{video.removeAttribute('src');video.removeAttribute('poster');video.load();}}
@@ -29,7 +33,8 @@ function seek(seconds){if(!video.getAttribute('src'))return;video.currentTime=se
 function bindEvidence(){document.querySelectorAll('[data-time]').forEach(el=>el.onclick=()=>seek(Number(el.dataset.time)));}
 function frameStrip(job){if(!job.media)return'';return`<div class="frames">${job.media.frames.map(f=>`<button class="frame" data-time="${f.seconds}" title="Seek to ${f.seconds.toFixed(2)} seconds"><img src="/media/${job.id}/frames/${f.file}" alt="Evidence frame at ${f.seconds.toFixed(2)} seconds" loading="lazy"><span>${fmt(f.seconds)}</span></button>`).join('')}</div>`;}
 function renderSelected(){
-  const item=selected();if(!item)return;
+  const item=selected();if(!item){if(state.mode==='dream')dream.render({id:'',name:'Dream Labs',online:false,cameras:[],scene:state.dream.error||'No public station is available.',sourceUrl:'https://dreamlabs.ai/playground/'},state.dream,state.liveSessions);return;}
+  if(state.mode==='dream'){dream.render(item,state.dream,state.liveSessions);return;}
   const signature=`${state.mode}:${item.id}:${item.updated||''}`;if(state.signature===signature)return;state.signature=signature;
   if(state.mode==='live'){live.render(item);return;}
   $('#scene-label').textContent=state.mode==='public'?`${pretty(item.scene)} / PUBLIC RUN`:`${pretty(item.scene)} / SAVED RUN`;
@@ -67,6 +72,7 @@ function renderJob(job){
   }
   bindEvidence();
 }
+$('#dream-live-open').onclick=()=>{setMode('dream');choose(state.dream.stations[0]?.id);};
 $('#public-tab').onclick=()=>{setMode('public');choose(state.clips[0]?.id);};
 $('#saved-tab').onclick=()=>{setMode('saved');if(state.jobs[0])choose(state.jobs[0].id);};
 $('#live-tab').onclick=()=>{setMode('live');if(state.liveSessions[0])choose(state.liveSessions[0].id);};
@@ -110,6 +116,6 @@ $('#record-form').onsubmit=async e=>{
 $('#stop-record').onclick=()=>{if(recorder?.state==='recording')recorder.stop();};
 window.addEventListener('beforeunload',e=>{if(recorder?.state==='recording'||live.active){e.preventDefault();e.returnValue='';}});
 let polling=false;
-async function refresh(){if(polling)return;polling=true;try{const [jobs,status,sessions,integration]=await Promise.all([api('/api/jobs'),api('/api/status'),api('/api/live/sessions'),api('/api/live/status')]);state.jobs=jobs;state.status=status;state.liveSessions=sessions;live.updateIntegration(integration);$('#api-state').textContent=status.apiConfigured?'Evaluator connected':'Evaluator needs key';renderList();renderSelected();}catch(err){$('#api-state').textContent='Worker disconnected';}finally{polling=false;}}
+async function refresh(){if(polling)return;polling=true;try{const [jobs,status,sessions,integration,dreamInfo]=await Promise.all([api('/api/jobs'),api('/api/status'),api('/api/live/sessions'),api('/api/live/status'),api('/api/dream-live/status')]);state.dream=dreamInfo;state.jobs=jobs;state.status=status;state.liveSessions=sessions;live.updateIntegration(integration);$('#api-state').textContent=status.apiConfigured?'Evaluator connected':'Evaluator needs key';renderList();renderSelected();}catch(err){$('#api-state').textContent='Worker disconnected';}finally{polling=false;}}
 try{const data=await api('/api/catalog');state.clips=data.clips;$('#scene-filter').innerHTML='<option value="">All scenes</option>'+[...new Set(state.clips.map(c=>c.scene))].sort().map(s=>`<option value="${esc(s)}">${esc(pretty(s))}</option>`).join('');renderList();if(state.clips.length)choose(state.clips[0].id);if(data.warning)toast('Showing the last saved public catalog.');}catch(err){$('#run-list').innerHTML=`<p class="empty-note">${esc(err.message)}<br>You can still import a saved video.</p>`;}
-await refresh();if(requestedLive&&state.liveSessions.some(j=>j.id===requestedLive)){setMode('live');choose(requestedLive);}else if(requestedRun&&state.jobs.some(j=>j.id===requestedRun)){setMode('saved');choose(requestedRun);}setInterval(refresh,2000);
+await refresh();if(requestedStation&&state.dream.stations.some(s=>s.id===requestedStation)){setMode('dream');choose(requestedStation);}else if(requestedLive&&state.liveSessions.some(j=>j.id===requestedLive)){setMode('live');choose(requestedLive);}else if(requestedRun&&state.jobs.some(j=>j.id===requestedRun)){setMode('saved');choose(requestedRun);}setInterval(refresh,2000);
