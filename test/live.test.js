@@ -10,6 +10,15 @@ test('live windows contain only received evidence, preserving a baseline and rec
   assert.ok(window.every(f=>received.includes(f)));assert.equal(new Set(window.map(f=>f.seq)).size,window.length);
   assert.deepEqual(selectLiveFrames([],0),[]);assert.deepEqual(selectLiveFrames(received.slice(0,1),-1),received.slice(0,1));
 });
+test('final review spans the received trajectory even when earlier frames were already processed',()=>{
+  const frames=Array.from({length:100},(_,seq)=>({seq,seconds:seq}));
+  const final=selectLiveFrames(frames,98,16,true);
+  assert.equal(final.length,16);assert.equal(final[0],frames[0]);assert.equal(final.at(-1),frames[99]);
+  assert.ok(final.some(f=>f.seq>20&&f.seq<40));assert.ok(final.some(f=>f.seq>50&&f.seq<75));
+  assert.deepEqual(final.slice(-5),frames.slice(-5));
+  assert.ok(final.every((f,i)=>frames.includes(f)&&(!i||f.seq>final[i-1].seq)));
+  assert.deepEqual(selectLiveFrames(frames.slice(0,3),2,16,true),frames.slice(0,3));
+});
 test('live judgments cannot cite future frames or invent timestamps',()=>{
   const frames=[{seq:5,seconds:5.25}];
   assert.throws(()=>attachLiveEvidence({verdict:'pass',evidence:[{seq:6,observation:'Done'}]},frames),/unavailable/);

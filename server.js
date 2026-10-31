@@ -8,6 +8,7 @@ import { createStore } from './lib/store.js';
 import { fetchCatalog, downloadVideo, allowedMediaUrl } from './lib/dream.js';
 import { prepareMedia } from './lib/media.js';
 import { evaluateRun } from './lib/evaluate.js';
+import {DEFAULT_EVALUATION_MODEL} from './lib/evaluation-policy.js';
 import { LiveEngine } from './lib/live.js';
 import { DreamLive } from './lib/dream-live.js';
 
@@ -30,7 +31,7 @@ async function getCatalog() {
 }
 function credentials() {
   // Reload a locally configured key without restarting queued work. Never return it to a client.
-  let key = process.env.OPENAI_API_KEY || '', model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
+  let key = process.env.OPENAI_API_KEY || '', model = process.env.OPENAI_MODEL || DEFAULT_EVALUATION_MODEL;
   try {
     const raw = process.getBuiltinModule('fs').readFileSync(path.join(ROOT,'.env.local'),'utf8');
     for (const line of raw.split(/\r?\n/)) {

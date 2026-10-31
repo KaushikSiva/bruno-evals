@@ -1,6 +1,6 @@
 # Bruno — public robot video evaluations
 
-Created at Haunted Hacks on October 31, 2026. Download public robot runs, record a browser surface, and review visible outcomes during playback or in the background. Live sessions use **Terse Durable Actors** and two application agents communicating through **Agent Relay**.
+Created at Haunted Hacks on October 31, 2026. Download public robot runs, record a browser surface, and review visible outcomes during playback or in the background. Live sessions use **Terse Durable Actors** and two application agents communicating through **Agent Relay**. Evaluation defaults to **GPT-6.1 Sol** (live: low reasoning; full video: medium reasoning). `OPENAI_MODEL` can explicitly override the model.
 
 ## Run
 
@@ -27,7 +27,7 @@ Background evaluation continues after the browser closes, while the server is ru
 3. The browser uploads about one JPEG per second. Only frames already received enter the analysis window; downloading the video does not let the evaluator see future frames.
 4. The observer starts after four frames and keeps reporting visible progress while reviews are in flight. Its timestamped drafts are saved in the session actor. A review window is sent to the reviewer through a real Agent Relay direct message; the next review window starts when that review returns.
 5. The reviewer separately examines the same evidence and replies through Relay. The actor commits its result with message and delivery IDs. Terse WebSocket updates stream into the UI; HTTP polling provides recovery.
-6. The final evidence window is reviewed after playback ends. The result appears beside the video. Open **Evidence & activity** for timestamped frames and agent messages, or **Review details** for criteria and limitations. **My reviews** keeps live sessions and full-video assessments together; reopening a session restores its durable evidence and reviews.
+6. After playback ends, the final review uses up to 16 received frames spread across the trajectory, retaining the last five frames. This preserves the transformation rather than showing only the opening and the last few seconds. The result appears beside the video. Open **Evidence & activity** for timestamped frames and agent messages, or **Review details** for criteria and limitations. **My reviews** keeps live sessions and full-video assessments together; reopening a session restores its durable evidence and reviews.
 
 This is real-time **visual review of public replays or user-selected browser capture**, not a connection to a live physical robot and not a robot control loop. The observer can update within a few seconds; reviewed judgments lag behind capture. Local checks saw first observations around 6 seconds and two-agent round trips around 22–46 seconds, depending on network/service latency. The UI displays the reviewed-through timestamp and measured latency. It does not use the OpenAI Realtime API; it uses rolling image windows through Responses.
 
@@ -90,6 +90,8 @@ The queue and events live in `data/bruno.sqlite`. Live evidence lives in `data/l
 Relay credentials are saved privately with mode 600 in `data/integrations/relay.json`; the OpenAI key stays in `.env.local`. These files, media, runtime storage, and local artifacts are gitignored. No API keys or Relay tokens are sent to the frontend. Public task text and agent findings travel through Relay; selected evidence images and criteria travel to OpenAI. JSON and original-video downloads are available in the UI.
 
 ## Evaluation limits
+
+The shared `practical-completion-v2` rubric judges the ordinary task goal and explicit success criteria. It accepts cosmetic imperfections and successful retries when they do not violate the task. It does not add unrequested requirements such as perfect folding symmetry, wrinkle removal, or a specific technique. A pass still needs visible completion, a fail needs evidence of an unmet requested condition, and missing decisive evidence remains uncertain. Reports record the model, requested model, prompt version, and rubric version. Previous reports retain their original judgments.
 
 This is visual review, not physical ground truth. Sampled frames can miss brief events, and camera views can hide outcomes. Saved-video timestamps are not verified robot execution time; public clips may be accelerated or edited. Do not infer contact force, continuous collision avoidance, or safety certification. Unsupported evidence references are rejected; an unsupported pass/fail without frame evidence becomes uncertain. AI-generated follow-up tests are suggestions, not automatically executed commands.
 

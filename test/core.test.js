@@ -47,3 +47,9 @@ test('fabricated frame indices and changed criteria are rejected',()=>{
 test('unsupported pass becomes uncertain and empty results cannot pass',()=>{
  const r=report();r.criteria[0].evidence=[];assert.equal(validateEvidence(r,frames,criteria).verdict,'uncertain');assert.equal(overallVerdict([]),'uncertain');
 });
+test('practical grading still preserves an explicit unmet criterion and requires evidence for failure',()=>{
+ const r=report();r.criteria[0].verdict='fail';
+ assert.equal(validateEvidence(r,frames,criteria).verdict,'fail');
+ r.criteria[0].evidence=[];assert.equal(validateEvidence(r,frames,criteria).verdict,'uncertain');
+ assert.equal(overallVerdict([{verdict:'pass'},{verdict:'fail'}]),'fail');
+});
