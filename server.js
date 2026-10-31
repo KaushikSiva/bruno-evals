@@ -12,12 +12,17 @@ import {DEFAULT_EVALUATION_MODEL} from './lib/evaluation-policy.js';
 import {DEFAULT_EVALUATION_API,DECISIONS_MODEL} from './lib/decisions-evaluate.js';
 import { LiveEngine } from './lib/live.js';
 import { DreamLive } from './lib/dream-live.js';
+import {SupabaseArchive, savedLiveSessions} from './lib/archive.js';
+import {supabaseConfig, createSupabaseRemote} from './lib/supabase.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.resolve(process.env.BRUNO_DATA_DIR || path.join(ROOT,'data'));
 const PORT = Number(process.env.PORT || 5190);
 await mkdir(path.join(DATA,'uploads'),{recursive:true});
 const store = createStore(DATA);
+let archiveRemote = null, archiveError = null;
+try { archiveRemote = createSupabaseRemote(supabaseConfig()); } catch (e) { archiveError = e.message; }
+const archive = new SupabaseArchive({dataDir:DATA,remote:archiveRemote,configurationError:archiveError});
 let catalog = [], catalogAt = 0, catalogError = null;
 async function getCatalog() {
   if (catalog.length && Date.now()-catalogAt < 300000) return catalog;
@@ -132,7 +137,22 @@ app.use('/api/live',live.routes());
 app.use('/live-media',express.static(path.join(DATA,'live'),{dotfiles:'deny',index:false}));
 app.get('/api/status',(_req,res)=>{
   const {key,model,evaluationApi}=credentials();
-  res.json({apiConfigured:!!key,model:evaluationApi==='decisions'?DECISIONS_MODEL:model,evaluationApi,fallbackModel:model,working,dataDirectory:DATA,catalogAt,catalogError});
+  res.json({apiConfigured:!!key,model:evaluationApi==='decisions'?DECISIONS_MODEL:model,evaluationApi,fallbackModel:model,working,dataDirectory:DATA,catalogAt,catalogError,storage:archive.status()});
+});
+app.get('/api/storage/status',(_req,res)=>res.json(archive.status()));
+app.get('/api/storage/runs',async(req,res)=>{
+  if(!archiveRemote)return res.status(503).json({error:'Supabase is not configured.'});
+  const offset=Number(req.query.offset||0),limit=Number(req.query.limit||50);
+  if(!Number.isInteger(offset)||offset<0||!Number.isInteger(limit)||limit<1||limit>100)throw Error('Invalid archive pagination.');
+  res.json({runs:await archiveRemote.list(offset,limit),offset,limit});
+});
+app.get('/api/storage/runs/:kind/:id',async(req,res)=>{
+  if(!archiveRemote)return res.status(503).json({error:'Supabase is not configured.'});
+  const {kind,id}=req.params;
+  if(!['job','live'].includes(kind)||!/^[0-9a-f-]{36}$/i.test(id))throw Error('Invalid archive run.');
+  const run=await archiveRemote.get(kind,id);
+  if(!run)return res.status(404).json({error:'Archived run not found.'});
+  res.set('Cache-Control','no-store').json(run);
 });
 app.get('/api/catalog',async(_req,res)=>res.json({clips:await getCatalog(),fetchedAt:catalogAt,warning:catalogError}));
 app.get('/api/jobs',(_req,res)=>res.json(store.list().map(cleanJob)));
@@ -186,9 +206,24 @@ app.get('/api/jobs/:id/original',(req,res)=>{
 app.use('/media',express.static(path.join(DATA,'runs'),{dotfiles:'deny',index:false}));
 app.use(express.static(path.join(ROOT,'public')));
 app.use((err,_req,res,_next)=>res.status(err.code==='LIMIT_FILE_SIZE'?413:400).json({error:err.message||'Request failed'}));
-const server=app.listen(PORT,'127.0.0.1',()=>console.log(`Bruno is running at http://127.0.0.1:${PORT}`));
+const server=app.listen(PORT,'127.0.0.1',()=>console.log(`Reality Check is running at http://127.0.0.1:${PORT}`));
 const interval=setInterval(()=>void work(),1500);
-function shutdown(){stopping=true;clearInterval(interval);dreamLive.close();void live.close();server.close(()=>{store.close();process.exit(0);});}
+let scanningArchive=false;
+async function syncArchive(){
+  if(!archiveRemote||scanningArchive||stopping)return;
+  scanningArchive=true;
+  try{
+    for(const job of store.list())archive.enqueue('job',{...job,events:store.events(job.id)});
+    const sessions=new Map((await savedLiveSessions(DATA)).map(s=>[s.id,s]));
+    for(const [id,state] of live.sessions)sessions.set(id,state);
+    for(const state of sessions.values())archive.enqueue('live',state);
+    void archive.flush().catch(()=>console.warn('Supabase archive retry pending; local data retained.'));
+  }catch{console.warn('Supabase archive scan deferred; local data retained.');}
+  finally{scanningArchive=false;}
+}
+const archiveInterval=setInterval(()=>void syncArchive(),10000);
+void syncArchive();
+function shutdown(){stopping=true;clearInterval(interval);clearInterval(archiveInterval);dreamLive.close();void live.close();server.close(()=>{store.close();void archive.close().finally(()=>process.exit(0));});}
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);
 void getCatalog().catch(e=>console.warn('Public catalog unavailable:',e.message));
 live.startWorker();

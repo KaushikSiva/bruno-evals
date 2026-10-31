@@ -4,23 +4,23 @@ Read this conversationally. Pause between paragraphs; the product footage can co
 
 Robot demos look great. Then you ask, “Did it actually finish the task?” And someone has to watch the whole thing again.
 
-I’m Kaushik. I built Bruno to do that first review.
+I’m Kaushik. I built Reality Check to do that first review.
 
 Here’s a real recorded run from Dream Labs. The task is simple: fold the dress.
 
-As the video plays, Bruno tracks what the robot is doing. One agent watches for progress. A second checks those observations against the footage. They communicate through Agent Relay.
+As the video plays, Reality Check tracks what the robot is doing. One agent watches for progress. A second checks those observations against the footage. They communicate through Agent Relay.
 
 And here’s the part I care about: you can check the answer. Open the evidence, click a timestamp, and see what the judgment is based on.
 
-In this run, the dress ends up folded. The edges aren’t perfect, but that wasn’t the task. Bruno looks for practical completion, and flags uncertainty when the footage isn’t clear enough.
+In this run, the dress ends up folded. The edges aren’t perfect, but that wasn’t the task. Reality Check looks for practical completion, and flags uncertainty when the footage isn’t clear enough.
 
 Terse keeps the task, evidence, and agent handoffs in durable state. I can refresh the page, and the review is still here.
 
-Today, Bruno works with public robot videos and browser recordings. We’re starting with engineers testing robot policies, who need to understand what went wrong across their runs.
+Today, Reality Check works with public robot videos and browser recordings. We’re starting with engineers testing robot policies, who need to understand what went wrong across their runs.
 
 The next step is bringing this into their testing workflow, so they spend less time watching footage and more time improving robots.
 
-That’s Bruno. Every robot run should come with evidence.
+That’s Reality Check. Every robot run should come with evidence.
 
 
 ## Recording notes

@@ -1,4 +1,4 @@
-# How a run moves through Bruno
+# How a run moves through Reality Check
 
 The main idea is simple: the video, the model's opinion, and the review state have different jobs. Keeping them separate makes a judgment easier to inspect and a failed handoff easier to recover.
 
@@ -6,7 +6,7 @@ The main idea is simple: the video, the model's opinion, and the review state ha
 
 **Live review of a recorded run.** The browser plays a public clip and sends about one JPEG per second. The observer only receives frames that have arrived. Having the full MP4 on disk does not give that request access to future frames.
 
-**Browser capture.** The user chooses a tab or window through the browser's capture picker. Bruno reviews sampled frames during capture. When recording stops, the full recording is saved and queued for a separate whole-video review.
+**Browser capture.** The user chooses a tab or window through the browser's capture picker. Reality Check reviews sampled frames during capture. When recording stops, the full recording is saved and queued for a separate whole-video review.
 
 **Whole-video review.** A background job saves the source, hashes its bytes, creates a seekable MP4, and extracts up to 24 frames. This path uses SQLite job state and a single evaluation request. It does not go through the live observer/reviewer Relay loop.
 
@@ -52,9 +52,12 @@ The observer keeps producing drafts while a review message is in flight. Drafts 
 | Terse | Live-session state and exclusive evaluation claims | Task, frames, leases, observer/reviewer checkpoints, messages |
 | Agent Relay | Observer/reviewer message delivery | Workspace identities and durable inboxes |
 | SQLite | Whole-video job queue and human review history | Jobs, status, events, human judgments |
-| OpenAI | Provisional visual judgment | Results are saved by Bruno locally |
+| Supabase (optional) | Private archive, independent of live evaluation | Review documents in Postgres; videos and JPEGs in Storage |
+| OpenAI | Provisional visual judgment | Results are saved by Reality Check locally |
 
 Terse runs locally in this demo. An exported `session.json` is convenient to inspect, but the actor store is the authoritative state. A backup needs both the local media directory and the actor store.
+
+When configured, Supabase receives snapshots through a persistent local upload queue. Media uploads complete before the corresponding cloud row is saved; failed transfers retry without stopping evaluations. Cloud rows include hashes and evidence timestamps, and media is served through short-lived signed URLs. This archive does not restore actor state automatically. See the [Supabase guide](supabase.md).
 
 ## The fast evaluator
 

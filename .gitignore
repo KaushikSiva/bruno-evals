@@ -1,5 +1,7 @@
 node_modules/
 .env.local
+.env.*.local
+supabase/.temp/
 data/
 artifacts/
 *.log

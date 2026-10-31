@@ -1,4 +1,6 @@
-# Running and operating Bruno
+# Running and operating Reality Check
+
+For private cloud storage of existing and future runs, see [Supabase setup, import, and recovery](supabase.md). Internal `bruno-*` identifiers are retained for compatibility with existing saved sessions.
 
 Created at Haunted Hacks on October 31, 2026. Download public robot runs, record a browser surface, and review visible outcomes during playback or in the background. Live sessions use **Terse Durable Actors** and two application agents communicating through **Agent Relay**. Live and saved-video evaluations default to the **OpenAI Decisions API with GPT-6 Luna**, batching criterion judgments and evidence-frame selection in each request. If Decisions is unavailable or returns malformed data, **GPT-6.1 Sol via Responses** provides a recorded fallback. `OPENAI_MODEL` controls the fallback; `BRUNO_EVALUATION_API=responses` selects the previous detailed evaluator explicitly.
 
@@ -14,7 +16,7 @@ chmod 600 .env.local
 npm start
 ```
 
-Open http://127.0.0.1:5190. `npm start` starts the real Terse development runtime on port 7100 and the Bruno server on port 5190. The project installs the Bun version needed by Terse. The first start may download Terse's native runtime. Use this as a local development app; public hosting needs authentication and a configured Terse deployment.
+Open http://127.0.0.1:5190. `npm start` starts the real Terse development runtime on port 7100 and the Reality Check server on port 5190. The project installs the Bun version needed by Terse. The first start may download Terse's native runtime. Use this as a local development app; public hosting needs authentication and a configured Terse deployment.
 
 The backend automatically creates a private Agent Relay workspace and registers `bruno-observer` and `bruno-reviewer` on first use. Subsequent starts reconnect the same identities. No separate Relay login is required for this local flow. The header shows Ready when the evaluation services are connected. Agent Relay and OpenAI require network access.
 
@@ -23,7 +25,7 @@ Background evaluation continues after the browser closes, while the server is ru
 ## Live demo
 
 1. Choose a run. **Best runs** is the default collection, using the 20 curated clips from Dream Labs’ dedicated Best runs gallery. **Other public clips** offers its separate 35-clip library. Adjust success criteria under **Options** if needed.
-2. Click **Evaluate**. Bruno saves a local replay and plays it at normal video speed. For Best runs, it uses the same video shown on the source page, which can differ from the publisher’s separate download version.
+2. Click **Evaluate**. Reality Check saves a local replay and plays it at normal video speed. For Best runs, it uses the same video shown on the source page, which can differ from the publisher’s separate download version.
 3. The browser uploads about one JPEG per second. Only frames already received enter the analysis window; downloading the video does not let the evaluator see future frames.
 4. The observer starts after four frames and keeps reporting visible progress while reviews are in flight. Its timestamped drafts are saved in the session actor. A review window is sent to the reviewer through a real Agent Relay direct message; the next review window starts when that review returns.
 5. The reviewer separately examines the same evidence and replies through Relay. The actor commits its result with message and delivery IDs. Terse WebSocket updates stream into the UI; HTTP polling provides recovery.
@@ -41,7 +43,7 @@ The watch waits for an available head camera and an active task. It samples arou
 
 The station view shows current snapshots and agent findings. **Open evidence & agent messages** opens the detailed live session; clicking evidence opens its saved JPEG. These are timestamped samples, not a continuous video recording. **Add video → Record a browser tab** remains available for a full video of a chosen browser surface.
 
-The watch continues when the browser closes, stops after 10 minutes or **Stop watching**, and retains its deadline across server restarts in `data/dream-live-watch.json`. An unavailable camera starts no new evaluation. Existing reviews can finish after the source stops. These public website interfaces are not a guaranteed streaming API and can change independently of Bruno.
+The watch continues when the browser closes, stops after 10 minutes or **Stop watching**, and retains its deadline across server restarts in `data/dream-live-watch.json`. An unavailable camera starts no new evaluation. Existing reviews can finish after the source stops. These public website interfaces are not a guaranteed streaming API and can change independently of Reality Check.
 
 At verification on October 31, Dream Labs' Station 1 reported no running robot session, no cameras, and its frame endpoint returned HTTP 503. The actual waiting/start/stop UI and source status were verified; active ingestion and task changes were tested with controlled upstream fixtures. A real live-camera run still needs verification when Dream Labs restores its camera. See `artifacts/dream-live-verification.json` for the observed state.
 
@@ -50,11 +52,11 @@ At verification on October 31, Dream Labs' Station 1 reported no running robot s
 1. Choose a clip from either Dream Labs collection.
 2. Open **Options** and set observable success criteria. The source task instruction is preserved.
 3. Click **Evaluate the entire video**.
-4. Bruno archives the original, produces a seekable MP4, hashes the source, and samples up to 24 timestamped frames.
+4. Reality Check archives the original, produces a seekable MP4, hashes the source, and samples up to 24 timestamped frames.
 5. A background worker sends only the task, criteria, capture type, and sampled frames to the OpenAI Decisions API, with Responses as a fallback. Publisher scores are withheld.
 6. Review the provisional pass/fail/uncertain result, seek to evidence frames, and optionally save a human judgment. The original AI result remains intact.
 
-Public clips are a selected gallery, not an unbiased sample. Do not report their pass rate as overall Dream-1 performance. Publisher scores may use different criteria from Bruno. Criteria entered for public footage are post hoc relative to the original experiment, although fixed before Bruno's evaluation.
+Public clips are a selected gallery, not an unbiased sample. Do not report their pass rate as overall Dream-1 performance. Publisher scores may use different criteria from Reality Check. Criteria entered for public footage are post hoc relative to the original experiment, although fixed before Reality Check's evaluation.
 
 Only public video/manifest GET requests are made to Dream Labs. This app does not submit tasks to physical robots, operate robot controls, use private endpoints, or claim an official partnership. The public gallery manifest and media locations are website interfaces and may change. Existing downloaded runs continue to work offline; new AI assessments require network access and a valid API key.
 

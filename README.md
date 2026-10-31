@@ -1,14 +1,14 @@
-# bruno.
+# Reality Check
 
 **Every robot run should come with evidence.**
 
-Bruno reviews robot videos and shows you the frames behind its judgment. Give it a task and a recording. It watches for progress, checks whether the task got done, and keeps a review you can come back to.
+Reality Check reviews robot videos and shows you the frames behind its judgment. Give it a task and a recording. It watches for progress, checks whether the task got done, and keeps a review you can come back to.
 
-Built at **Haunted Hacks: Real-Time AI Edition**, October 31, 2026, with **OpenAI, Terse, and Agent Relay**.
+Built at **Haunted Hacks: Real-Time AI Edition**, October 31, 2026, with **OpenAI, Terse, and Agent Relay**, plus an optional **Supabase** archive.
 
 [Try it locally](#try-it-locally) · [How it works](#how-it-works) · [Sponsor integrations](#what-each-sponsor-tool-does) · [Measured results](docs/benchmarks.md) · [Demo script](docs/demo-script.md)
 
-![Bruno reviewing a recorded dress-folding run, with the final frame and its provisional Pass judgment](docs/images/bruno-review.png)
+![Reality Check reviewing a recorded dress-folding run, with the final frame and its provisional Pass judgment](docs/images/bruno-review.png)
 
 *Actual app, actual review. Robot footage: [Dream Labs public playground](https://dreamlabs.ai/playground/?clip=best154). This is a recorded replay.*
 
@@ -16,7 +16,7 @@ Built at **Haunted Hacks: Real-Time AI Edition**, October 31, 2026, with **OpenA
 
 A robot video can look promising and still leave you with a lot of questions. Did it finish? Did it recover after a mistake? Which moment explains the failure?
 
-I wanted a first review that a robotics engineer could check, rather than another score to take on trust. Bruno keeps the task, the footage, the judgment, and the evidence together. You can click the timestamp and decide for yourself.
+I wanted a first review that a robotics engineer could check, rather than another score to take on trust. Reality Check keeps the task, the footage, the judgment, and the evidence together. You can click the timestamp and decide for yourself.
 
 The first audience is engineers testing robot policies. The longer-term goal is to make reviewing a run as routine as running a test.
 
@@ -26,11 +26,11 @@ The task is **“Fold the dress.”**
 
 As the recorded run plays, the observer checks the frames received so far. A reviewer examines that evidence in a separate model request. Their messages travel through Agent Relay, and Terse saves the session as it changes.
 
-The final fold is imperfect, but the requested outcome is visible. Bruno returns a provisional **Pass**. It does not invent requirements for perfect edges or a particular folding technique. If the footage cannot establish the answer, it can return **Uncertain**.
+The final fold is imperfect, but the requested outcome is visible. Reality Check returns a provisional **Pass**. It does not invent requirements for perfect edges or a particular folding technique. If the footage cannot establish the answer, it can return **Uncertain**.
 
 Open **Evidence & activity**, click a cited timestamp, then refresh the page. The review and its evidence are still there.
 
-![Timestamped evidence, observer and reviewer activity, and real Agent Relay delivery receipts in Bruno](docs/images/bruno-evidence.png)
+![Timestamped evidence, observer and reviewer activity, and real Agent Relay delivery receipts in Reality Check](docs/images/bruno-evidence.png)
 
 You can also upload your own video, record a browser tab, or evaluate an entire saved clip in the background. The public-camera connector waits for an available Dream Labs station; an active physical-camera run has not yet been verified.
 
@@ -48,6 +48,10 @@ flowchart LR
     O -->|"save observation"| T
     T -->|"WebSocket updates"| U["Review + clickable evidence"]
     D["Local video files + SQLite jobs"] --> V
+    D --> Q["Retryable archive queue"]
+    T --> Q
+    Q --> P["Supabase Postgres · reviews"]
+    Q --> B["Private Supabase Storage · evidence"]
     classDef accent fill:#fff0e7,stroke:#e95e32,color:#282b25
     class O,R,T,A accent
 ```
@@ -58,13 +62,14 @@ Terse stores the task, frames, evaluation lease, saved model results, and delive
 
 ## What each sponsor tool does
 
-| Tool | Its job in Bruno | Where to look |
+| Tool | Its job in Reality Check | Where to look |
 | --- | --- | --- |
 | **[OpenAI](https://developers.openai.com/api/docs/guides/decisions)** | Decisions classifies each task condition and selects evidence frames using GPT-6 Luna. GPT-6.1 Sol through Responses is the fallback and the optional detailed-review mode. | [Evaluator](lib/decisions-evaluate.js), [rubric](lib/evaluation-policy.js) |
 | **[Terse Durable Actors](https://docs.useterse.ai/quickstart)** | Each live run has a persistent session actor. It holds the review state, prevents overlapping claims, saves checkpoints, and streams updates to the browser. | [Actors](integrations/terse/src/actors.ts), [worker](lib/live.js) |
 | **[Agent Relay](https://www.npmjs.com/package/@agent-relay/sdk)** | The observer sends a review request. The reviewer replies with its judgment. Durable inboxes, stable message keys, and delivery receipts make the handoff inspectable and recoverable. | [Relay integration](lib/relay.js) |
+| **[Supabase](https://supabase.com/docs)** | Optional private archive: Postgres stores reviews and provenance; Storage holds videos and timestamped evidence. Uploads retry independently of evaluation. | [Archive worker](lib/archive.js), [setup and migration](docs/supabase.md) |
 
-Dream Labs supplies the public footage used in this demo; Bruno is an independent project.
+Dream Labs supplies the public footage used in this demo; Reality Check is an independent project.
 
 ## What we measured
 
@@ -101,9 +106,11 @@ Open **http://127.0.0.1:5190**, choose **Best runs → Fold the dress**, and cli
 
 This is a local development app. Public hosting needs authentication and a configured actor deployment. See the [runbook](docs/runbook.md) for recording, imports, saved files, configuration, and recovery.
 
+To save existing and future runs in Supabase, apply the migration and configure a server secret using the [archive setup guide](docs/supabase.md). `npm run storage:sync -- --dry-run` previews the import; `npm run storage:sync` uploads it. The archive remains optional for local use.
+
 ## What this can—and can't—tell you
 
-Bruno judges visible task completion. Sampled images can miss motion, hide contact, or leave the ending unclear. A visual pass is not a safety certification, and agreement between two calls is not ground truth.
+Reality Check judges visible task completion. Sampled images can miss motion, hide contact, or leave the ending unclear. A visual pass is not a safety certification, and agreement between two calls is not ground truth.
 
 Public gallery clips are selected examples, so their pass rate is not a model benchmark. Publisher scores are withheld from the evaluator. Decisions produces short, fixed-wording explanations with selected evidence pointers; detailed prose remains available through Responses.
 
@@ -113,7 +120,7 @@ The live-camera connector is implemented and tested against controlled fixtures.
 
 The next useful work is better evidence selection, a human-labeled evaluation set, faster message delivery, and a verified live-camera run. [The roadmap](docs/roadmap.md) separates those plans from what works today.
 
-If you have a robot run Bruno gets wrong, that is a useful contribution. Open an issue with the task, the expected outcome, and a clip you have permission to share. Please leave credentials and private footage out of issues. [Contributing guide →](CONTRIBUTING.md)
+If you have a robot run Reality Check gets wrong, that is a useful contribution. Open an issue with the task, the expected outcome, and a clip you have permission to share. Please leave credentials and private footage out of issues. [Contributing guide →](CONTRIBUTING.md)
 
 ```sh
 npm test
@@ -121,4 +128,4 @@ npm test
 node scripts/verify-live.js --clip=dream-best-154
 ```
 
-Built by [Kaushik Sivakumar](https://github.com/KaushikSiva). If Bruno would help your robotics work, a star helps other builders find it.
+Built by [Kaushik Sivakumar](https://github.com/KaushikSiva). If Reality Check would help your robotics work, a star helps other builders find it.

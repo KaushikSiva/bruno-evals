@@ -123,7 +123,7 @@ $('#record-form').onsubmit=async e=>{
       const data=new FormData();data.append('video',blob,mime.includes('mp4')?'browser-run.mp4':'browser-run.webm');data.append('task',recordInput.task);data.append('captureKind','browser_recording');if(recordInput.criteria.length)data.append('criteria',JSON.stringify(recordInput.criteria));
       toast('Recording stopped. Saving the video and queuing evaluation…');
       try{const job=await api('/api/jobs/upload',data);state.jobs.unshift(job);setMode('saved');choose(job.id);toast('Recording saved. Evaluation is running in the background.');if(session?.id)await api(`/api/live/sessions/${session.id}/recording`,{jobId:job.id}).catch(e=>toast(`Recording saved; live link: ${e.message}`));}
-      catch(err){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=mime.includes('mp4')?'bruno-recording.mp4':'bruno-recording.webm';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),60000);toast(`Upload failed: ${err.message}. A local copy was downloaded.`);}
+      catch(err){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=mime.includes('mp4')?'reality-check-recording.mp4':'reality-check-recording.webm';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),60000);toast(`Upload failed: ${err.message}. A local copy was downloaded.`);}
     };
     recordStream.getVideoTracks()[0].onended=()=>{if(recorder?.state==='recording')recorder.stop();};
     recorder.start(1000);recordStarted=Date.now();recordTimer=setInterval(()=>{$('#record-clock').textContent=`Recording ${fmt((Date.now()-recordStarted)/1000)}`;if(Date.now()-recordStarted>600000&&recorder?.state==='recording')recorder.stop();},1000);

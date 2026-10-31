@@ -1,6 +1,6 @@
-# Contributing to Bruno
+# Contributing to Reality Check
 
-The most useful report is a run Bruno misunderstood. Include the task, the expected outcome, the actual judgment, and the timestamp that explains the difference. Share only footage you are allowed to publish.
+The most useful report is a run Reality Check misunderstood. Include the task, the expected outcome, the actual judgment, and the timestamp that explains the difference. Share only footage you are allowed to publish.
 
 For code changes, open a small pull request describing the user-visible problem and how you checked the fix. Preserve the task criteria, evidence timestamps, original judgments, and source provenance. A faster path should still make uncertainty visible.
 

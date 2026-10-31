@@ -1,6 +1,6 @@
 # What comes next
 
-Bruno currently runs locally. Public replay review, browser recording, saved-video evaluation, durable live state, and the two-agent message flow are implemented. The Decisions evaluator and Responses fallback are working.
+Reality Check currently runs locally. Public replay review, browser recording, saved-video evaluation, durable live state, and the two-agent message flow are implemented. The Decisions evaluator and Responses fallback are working.
 
 The next work should make the judgments more useful, not just add more UI.
 
