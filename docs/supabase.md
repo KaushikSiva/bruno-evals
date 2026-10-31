@@ -75,3 +75,7 @@ This is an additional archive, not automatic restoration of a runnable Terse ins
 Do not delete uploaded objects manually while keeping their local upload receipts: receipts assume the private archive is retained. Deleted local records are not deleted from Supabase automatically. Account-specific Storage size limits still apply; a rejected file remains pending with an error.
 
 Tests exercise restart/retry recovery, updates arriving mid-upload, private file boundaries, project separation, and actual PostgreSQL migration permissions and stale-write protection using PGlite. Cloud verification additionally requires a connected project and the migration.
+
+## Verified against a connected project
+
+On October 31, 2026, the demo archive successfully stored **17 runs and 568 media files** (40.8 MB), with no pending or failed uploads. All 17 completed cloud review documents matched their local records, and every media reference returned a signed URL. Downloaded sample evidence and a robot replay matched their SHA-256 hashes. Anonymous database reads, anonymous Storage downloads, and unsigned public file URLs were denied. Project credentials and private media remain outside this repository.
